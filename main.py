@@ -20,19 +20,43 @@ def create_attribute(element, name, value):
 
 
 def add_page_number(run):
-    fldChar1 = create_element('w:fldChar')
-    create_attribute(fldChar1, 'w:fldCharType', 'begin')
+    fldStart = create_element('w:fldChar')
+    create_attribute(fldStart, 'w:fldCharType', 'begin')
 
     instrText = create_element('w:instrText')
     create_attribute(instrText, 'xml:space', 'preserve')
     instrText.text = "PAGE"
 
-    fldChar2 = create_element('w:fldChar')
-    create_attribute(fldChar2, 'w:fldCharType', 'end')
+    fldChar1 = create_element('w:fldChar')
+    create_attribute(fldChar1, 'w:fldCharType', 'separate')
 
-    run._r.append(fldChar1)
+    fldChar2 = create_element('w:t')
+    fldChar2.text = "2"
+
+    fldEnd = create_element('w:fldChar')
+    create_attribute(fldEnd, 'w:fldCharType', 'end')
+
+    run._r.append(fldStart)
+
     run._r.append(instrText)
+    run._r.append(fldChar1)
     run._r.append(fldChar2)
+
+    run._r.append(fldEnd)
+
+
+# нумерация
+def numbering():
+    add_page_number(doc.sections[0].header.paragraphs[0].add_run())
+    doc.sections[0].header.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # выравниваем по центру
+    doc.sections[0].different_first_page_header_footer = True  # особый колонтитул для первой страницы - вкл
+    doc.sections[1].header_distance = Mm(10)  # отступ колонитула от вверхнего края
+
+    sectPr = doc.sections[0]._sectPr  # хер его знает, стоило бы узнать
+
+    pgNumType = OxmlElement('w:pgNumType')
+    pgNumType.set(ns.qn('w:start'), "1")  # 1 это с какой страницы начинается отсчёт
+    sectPr.append(pgNumType)
 
 
 # Функция для форматирования текст
@@ -57,31 +81,34 @@ def Format():
 
 # функция редактирование текста
 def Redact():
-    for p in doc.paragraphs:
+    for p in doc.paragraphs:  # проходим все абзацы в документе на поиск ошибок, и заменяем их
         text = p.text
+        # флаг, который отвечает, есть ли ошибка в абзаце
+        # если есть, то правим и заменяем текс, если нет, то нет
         flag = False
-        if " N " in p.text:
+        if " N " in p.text:  # проверяем, если ли N, если есть заменяем на №
             text = text.replace(' N ', ' № ')
             flag = True
-        if ' "' in p.text and '" ' in p.text:
+        if ' "' in p.text and '" ' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
             text = text.replace(' "', ' «')
             text = text.replace('" ', '» ')
             flag = True
-        if '“' in p.text and '”' in p.text:
+        if '“' in p.text and '”' in p.text:  # проверяем, если ли “...”, если есть заменяем на «...»
             text = text.replace('“', ' «')
             text = text.replace('”', '» ')
             flag = True
-        if ' - ' in p.text:
+        if ' - ' in p.text:  # проверяем, если ли -, если есть заменяем на –
             text = text.replace(' - ', ' – ')
             flag = True
-        if ' т.е. ' in p.text:
+        if ' т.е. ' in p.text:  # проверяем, если ли т.е., если есть заменяем на то есть
             text = text.replace(' т.е. ', ' то есть ')
             flag = True
-        if flag:
+        if flag:  # если есть хотя бы одна ошибка в абзаце, меняем на исправленный вариант
             style = p.style
             p.text = text
             p.style = style
-
+    # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
+    # в 12 октября 2021 года
     if "Дело" in doc.paragraphs[5].text:
         text = str(doc.paragraphs[5].text)
         flag = False
@@ -101,7 +128,6 @@ def Redact():
     doc.save('test.docx')
 
 
-add_page_number(doc.sections[0].header.paragraphs[0].add_run())
-doc.sections[0].header.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+numbering()
 Format()
 Redact()
