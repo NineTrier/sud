@@ -1,21 +1,25 @@
 import tkinter
 
 from docx import Document
-from  docx.oxml import OxmlElement, ns
+from docx.oxml import OxmlElement, ns
 from docx.shared import Pt, Mm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.enum.text import WD_COLOR_INDEX
 import tkinter as tk
 
+
 class Formatter:
+
+    settings: dict
 
     month = {"01": "февраля", "02": "января", "03": "марта", "04": "апреля", "05": "мая",
              "06": "июня", "07": "июля", "08": "августа", "09": "сентября", "10": "октября",
              "11": "ноября", "12": "декабря"}
 
-    def __init__(self, path):
+    def __init__(self, path, settings):
         self.doc = Document(path)
         self.path = path
+        self.settings = settings
 
     def create_element(self, name):
         return OxmlElement(name)
@@ -88,44 +92,49 @@ class Formatter:
             # флаг, который отвечает, есть ли ошибка в абзаце
             # если есть, то правим и заменяем текс, если нет, то нет
             flag = False
-            if " N " in p.text:  # проверяем, если ли N, если есть заменяем на №
-                text = text.replace(' N ', ' № ')
-                flag = True
-            if ' "' in p.text and '" ' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
-                text = text.replace(' "', ' «')
-                text = text.replace('" ', '» ')
-                flag = True
-            if '“' in p.text and '”' in p.text:  # проверяем, если ли “...”, если есть заменяем на «...»
-                text = text.replace('“', ' «')
-                text = text.replace('”', '» ')
-                flag = True
-            if ' - ' in p.text:  # проверяем, если ли -, если есть заменяем на –
-                text = text.replace(' - ', ' – ')
-                flag = True
-            if ' т.е. ' in p.text:  # проверяем, если ли т.е., если есть заменяем на то есть
-                text = text.replace(' т.е. ', ' то есть ')
-                flag = True
+            if self.settings.values()[0]:
+                if " N " in p.text:  # проверяем, если ли N, если есть заменяем на №
+                    text = text.replace(' N ', ' № ')
+                    flag = True
+            if self.settings.values()[2]:
+                if ' "' in p.text and '" ' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
+                    text = text.replace(' "', ' «')
+                    text = text.replace('" ', '» ')
+                    flag = True
+                if '“' in p.text and '”' in p.text:  # проверяем, если ли “...”, если есть заменяем на «...»
+                    text = text.replace('“', ' «')
+                    text = text.replace('”', '» ')
+                    flag = True
+            if self.settings.values()[4]:
+                if ' - ' in p.text:  # проверяем, если ли -, если есть заменяем на –
+                    text = text.replace(' - ', ' – ')
+                    flag = True
+            if self.settings.values()[3]:
+                if ' т.е. ' in p.text:  # проверяем, если ли т.е., если есть заменяем на то есть
+                    text = text.replace(' т.е. ', ' то есть ')
+                    flag = True
             if flag:  # если есть хотя бы одна ошибка в абзаце, меняем на исправленный вариант
                 style = p.style
                 p.text = text
                 p.style = style
         # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
         # в 12 октября 2021 года
-        if "Дело" in self.doc.paragraphs[5].text:
-            text = str(self.doc.paragraphs[5].text)
-            flag = False
-            if "." in text[0:10]:
-                monthNumb = text[3:5]
-                if monthNumb in self.month.keys():
-                    text = text.replace(text[0:10], f"{text[0:10]} года")
-                    text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
+        if self.settings.values()[1]:
+            if "Дело" in self.doc.paragraphs[5].text:
+                text = str(self.doc.paragraphs[5].text)
+                flag = False
+                if "." in text[0:10]:
+                    monthNumb = text[3:5]
+                    if monthNumb in self.month.keys():
+                        text = text.replace(text[0:10], f"{text[0:10]} года")
+                        text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
+                        flag = True
+                elif "г.":
+                    text = text.replace("г.", "года ")
                     flag = True
-            elif "г.":
-                text = text.replace("г.", "года ")
-                flag = True
-            if flag:
-                style = p.style
-                self.doc.paragraphs[5].text = text
-                p.style = style
+                if flag:
+                    style = p.style
+                    self.doc.paragraphs[5].text = text
+                    p.style = style
         self.doc.save('test.docx')
         print("Готово")
