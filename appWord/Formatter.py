@@ -2,13 +2,12 @@ import os
 
 from docx import Document
 from docx.oxml import OxmlElement, ns
-from docx.shared import Pt, Mm
+from docx.shared import Pt, Mm, Cm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_LINE_SPACING
 from docx.enum.text import WD_COLOR_INDEX
 
 
 class Formatter:
-
     settings: dict
 
     month = {"01": "февраля", "02": "января", "03": "марта", "04": "апреля", "05": "мая",
@@ -148,8 +147,9 @@ class Formatter:
         if self.doc.sections[0].header.paragraphs[0].text == "":
             self.add_page_number(self.doc.sections[0].header.paragraphs[0].add_run())
             self.doc.sections[0].header.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # выравниваем по центру
-            self.doc.sections[0].different_first_page_header_footer = True  # особый колонтитул для первой страницы - вкл
-            #self.doc.sections[0].header.paragraphs[0].paragraph_format.space_after = Mm(100)  # отступ колонитула от вверхнего края
+            self.doc.sections[
+                0].different_first_page_header_footer = True  # особый колонтитул для первой страницы - вкл
+            # self.doc.sections[0].header.paragraphs[0].paragraph_format.space_after = Mm(100)  # отступ колонитула от вверхнего края
             sectPr = self.doc.sections[0]._sectPr  # хер его знает, стоило бы узнать
             print("Трогаю")
             pgNumType = OxmlElement('w:pgNumType')
@@ -172,7 +172,7 @@ class Formatter:
         # Настройка междустрочного интервала и убираем выделение корректором
         for p in self.doc.paragraphs:
             p.add_run()
-            #print(p.text)
+            # print(p.text)
             p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
             p.runs[0].font.highlight_color = WD_COLOR_INDEX.AUTO
         # Настройка шрифта и размера текста
@@ -186,13 +186,13 @@ class Formatter:
         # self.numbering()
         # self.Format()
         for p in self.doc.paragraphs:  # проходим все абзацы в документе на поиск ошибок, и заменяем их
-            #self.get_textInput(p)
+            # self.get_textInput(p)
             print(p.text)
             self.set_textInput(p)
             text = p.text
             if p.text == "":
                 continue
-            #print(text, "------------------", p.style.name, p.style.font.bold, p.style.font.size)
+            # print(text, "------------------", p.style.name, p.style.font.bold, p.style.font.size)
             # флаг, который отвечает, есть ли ошибка в абзаце
             # если есть, то правим и заменяем текс, если нет, то нет
             flag = False
@@ -205,9 +205,17 @@ class Formatter:
                     text = text.replace(' "', ' «')
                     text = text.replace('" ', '» ')
                     flag = True
+                elif ' "' in p.text and '".' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
+                    text = text.replace(' "', '«')
+                    text = text.replace('".', '».')
+                    flag = True
+                elif ' "' in p.text and '",' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
+                    text = text.replace(' "', '«')
+                    text = text.replace('",', '»,')
+                    flag = True
                 if '“' in p.text and '”' in p.text:  # проверяем, если ли “...”, если есть заменяем на «...»
-                    text = text.replace('“', ' «')
-                    text = text.replace('”', '» ')
+                    text = text.replace('“', '«')
+                    text = text.replace('”', '»')
                     flag = True
             if list(self.settings.values())[4]:
                 if ' - ' in p.text:  # проверяем, если ли -, если есть заменяем на –
@@ -219,16 +227,29 @@ class Formatter:
                     flag = True
             if list(self.settings.values())[5]:
                 if 'решение Арбитражный суд' in p.text:
-                    text = text.replace('решение Арбитражный суд','решение Арбитражного суда')
+                    text = text.replace('решение Арбитражный суд', 'решение Арбитражного суда')
                     flag = True
                 if 'определение Арбитражный суд' in p.text:
                     flag = True
-                    text = text.replace('определение Арбитражный суд','определение Арбитражного суда')
+                    text = text.replace('определение Арбитражный суд', 'определение Арбитражного суда')
             if list(self.settings.values())[6]:
                 if ' РФ ' in p.text:
                     flag = True
                     text = text.replace(' РФ ', 'Российская Федерация')
             # если есть хотя бы одна ошибка в абзаце, меняем на исправленный вариант
+            if list(self.settings.values())[7]:
+                check_flag = True
+                if (" дел" in text or " Дел" in text) and " № " in text and "/" in text:
+                    for i in range(19, 30):
+                        if f"/20{i}" in text:
+                            check_flag = False
+                            continue
+                    if check_flag:
+                        for i in range(19, 30):
+                            if f"/{i}" in text:
+                                flag = True
+                                text = text.replace(f"/{i}", f"/20{i}")
+                                continue
             if flag:
                 style = p.style
                 p.text = text
@@ -237,21 +258,39 @@ class Formatter:
         # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
         # в 12 октября 2021 года
         #     if list(self.settings.values())[1]:
-                    # if "Дело" in self.doc.paragraphs[5].text:
-                    #     text = str(self.doc.paragraphs[5].text)
-                    #     flag = False
-                    #     if "." in text[0:10]:
-                    #         monthNumb = text[3:5]
-                    #         if monthNumb in self.month.keys():
-                    #             text = text.replace(text[0:10], f"{text[0:10]} года")
-                    #             text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
-                    #             flag = True
-                    #     elif "г.":
-                    #         text = text.replace("г.", "года ")
-                    #         flag = True
-            # if flag:
-            #     style = p.style
-            #     self.doc.paragraphs[5].text = text
-            #     p.style = style
+        #         if "Дело" in self.doc.paragraphs[5].text:
+        #             text = str(self.doc.paragraphs[5].text)
+        #             flag = False
+        #             if "." in text[0:10]:
+        #                 monthNumb = text[3:5]
+        #                 if monthNumb in self.month.keys():
+        #                     text = text.replace(text[0:10], f"{text[0:10]} года")
+        #                     text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
+        #                     flag = True
+        #             elif "г.":
+        #                 text = text.replace("г.", "года ")
+        #                 flag = True
+        #         if flag:
+        #             style = p.style
+        #             self.doc.paragraphs[5].text = text
+        #             p.style = style
+        if list(self.settings.values())[7]:
+            for table in self.doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if (" дел" in cell.text or "Дел" in cell.text) and " № " in cell.text and "/" in cell.text:
+                            check_flag = True
+                            for i in range(19, 30):
+                                if f"/20{i}" in cell.text:
+                                    cell.paragraphs[0].style.font.name = 'Times New Roman'
+                                    check_flag = False
+                                    continue
+                            if check_flag:
+                                for i in range(19, 30):
+                                    if f"/{i}" in cell.text:
+                                        cell.text = cell.text.replace(f"/{i}", f"/20{i}")
+                                        cell.paragraphs[0].style.font.name = 'Times New Roman'
+                                        cell.paragraphs[0].paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+                                        continue
         self.doc.save("test1.docx")
         os.startfile("test1.docx")

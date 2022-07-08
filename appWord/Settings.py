@@ -1,3 +1,4 @@
+import json
 import sys
 
 from PyQt5.QtCore import Qt
@@ -24,6 +25,7 @@ class Settings(QWidget):
         self.cb5 = QCheckBox('Заменить тире', self)
         self.cb6 = QCheckBox('решение/определние падеж', self)
         self.cb7 = QCheckBox('Раскрыть РФ', self)
+        self.cb8 = QCheckBox('Раскрыть год (22 -> 2022)', self)
 
         if list(self.settings.values())[0]:
             self.cb1.setChecked(True)
@@ -39,6 +41,8 @@ class Settings(QWidget):
             self.cb6.setChecked(True)
         if list(self.settings.values())[6]:
             self.cb7.setChecked(True)
+        if list(self.settings.values())[7]:
+            self.cb8.setChecked(True)
 
         self.btnEnter = QPushButton("Подтвердить")
         self.btnEnter.setCheckable(True)
@@ -52,7 +56,10 @@ class Settings(QWidget):
         self.grid.addWidget(self.cb3, 1, 0)
         self.grid.addWidget(self.cb4, 1, 1)
         self.grid.addWidget(self.cb5, 2, 0)
-        self.grid.addWidget(self.btnEnter, 3, 1)
+        self.grid.addWidget(self.cb6, 2, 1)
+        self.grid.addWidget(self.cb7, 3, 0)
+        self.grid.addWidget(self.cb8, 3, 1)
+        self.grid.addWidget(self.btnEnter, 4, 1)
 
         self.setLayout(self.grid)
 
@@ -92,13 +99,22 @@ class Settings(QWidget):
         else:
             self.settings['ChangeTire'] = False
 
-        if self.cb5.isChecked():
+        if self.cb6.isChecked():
             self.settings['ChangePadeg'] = True
         else:
             self.settings['ChangePadeg'] = False
 
-        if self.cb5.isChecked():
+        if self.cb7.isChecked():
             self.settings['ChangeRF'] = True
         else:
             self.settings['ChangeRF'] = False
+
+        if self.cb7.isChecked():
+            self.settings['ChangeGod'] = True
+        else:
+            self.settings['ChangeGod'] = False
+
+        with open("save_setting_file.json", 'w') as outfile:
+            json.dump(self.settings, outfile)
+
         print(self.settings)
