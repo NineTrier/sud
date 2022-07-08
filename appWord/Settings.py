@@ -1,9 +1,8 @@
 import sys
 
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtWidgets import QWidget, QApplication, QMainWindow, QPushButton, QGridLayout, QCheckBox
-from tkinter import filedialog as fd
-from Formatter import Formatter
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget, QApplication, QMainWindow, QPushButton, QGridLayout, QCheckBox
+
 
 
 # Подкласс QMainWindow для настройки главного окна приложения
@@ -23,6 +22,8 @@ class Settings(QWidget):
         self.cb3 = QCheckBox('Заменить кавычки', self)
         self.cb4 = QCheckBox('Раскрыть аббревиатуру т.е.', self)
         self.cb5 = QCheckBox('Заменить тире', self)
+        self.cb6 = QCheckBox('решение/определние падеж', self)
+        self.cb7 = QCheckBox('Раскрыть РФ', self)
 
         if list(self.settings.values())[0]:
             self.cb1.setChecked(True)
@@ -34,6 +35,10 @@ class Settings(QWidget):
             self.cb4.setChecked(True)
         if list(self.settings.values())[4]:
             self.cb5.setChecked(True)
+        if list(self.settings.values())[5]:
+            self.cb6.setChecked(True)
+        if list(self.settings.values())[6]:
+            self.cb7.setChecked(True)
 
         self.btnEnter = QPushButton("Подтвердить")
         self.btnEnter.setCheckable(True)
@@ -87,5 +92,13 @@ class Settings(QWidget):
         else:
             self.settings['ChangeTire'] = False
 
-        print(self.settings)
+        if self.cb5.isChecked():
+            self.settings['ChangePadeg'] = True
+        else:
+            self.settings['ChangePadeg'] = False
 
+        if self.cb5.isChecked():
+            self.settings['ChangeRF'] = True
+        else:
+            self.settings['ChangeRF'] = False
+        print(self.settings)

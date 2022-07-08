@@ -183,10 +183,11 @@ class Formatter:
 
     # функция редактирование текста
     def Redact(self):
-        self.numbering()
-        self.Format()
+        # self.numbering()
+        # self.Format()
         for p in self.doc.paragraphs:  # проходим все абзацы в документе на поиск ошибок, и заменяем их
             #self.get_textInput(p)
+            print(p.text)
             self.set_textInput(p)
             text = p.text
             if p.text == "":
@@ -216,35 +217,41 @@ class Formatter:
                 if ' т.е. ' in p.text:  # проверяем, если ли т.е., если есть заменяем на то есть
                     text = text.replace(' т.е. ', ' то есть ')
                     flag = True
-            if 'решение Арбитражный суд' in p.text:
-                text = text.replace('решение Арбитражный суд','решение Арбитражного суда')
-                flag = True
-            if 'определение Арбитражный суд' in p.text:
-                flag = True
-                text = text.replace('определение Арбитражный суд','определение Арбитражного суда')
+            if list(self.settings.values())[5]:
+                if 'решение Арбитражный суд' in p.text:
+                    text = text.replace('решение Арбитражный суд','решение Арбитражного суда')
+                    flag = True
+                if 'определение Арбитражный суд' in p.text:
+                    flag = True
+                    text = text.replace('определение Арбитражный суд','определение Арбитражного суда')
+            if list(self.settings.values())[6]:
+                if ' РФ ' in p.text:
+                    flag = True
+                    text = text.replace(' РФ ', 'Российская Федерация')
             # если есть хотя бы одна ошибка в абзаце, меняем на исправленный вариант
             if flag:
                 style = p.style
                 p.text = text
                 p.style = style
+            print(p.text)
         # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
         # в 12 октября 2021 года
-        if list(self.settings.values())[1]:
-            if "Дело" in self.doc.paragraphs[5].text:
-                text = str(self.doc.paragraphs[5].text)
-                flag = False
-                if "." in text[0:10]:
-                    monthNumb = text[3:5]
-                    if monthNumb in self.month.keys():
-                        text = text.replace(text[0:10], f"{text[0:10]} года")
-                        text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
-                        flag = True
-                elif "г.":
-                    text = text.replace("г.", "года ")
-                    flag = True
-                if flag:
-                    style = p.style
-                    self.doc.paragraphs[5].text = text
-                    p.style = style
+        #     if list(self.settings.values())[1]:
+                    # if "Дело" in self.doc.paragraphs[5].text:
+                    #     text = str(self.doc.paragraphs[5].text)
+                    #     flag = False
+                    #     if "." in text[0:10]:
+                    #         monthNumb = text[3:5]
+                    #         if monthNumb in self.month.keys():
+                    #             text = text.replace(text[0:10], f"{text[0:10]} года")
+                    #             text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
+                    #             flag = True
+                    #     elif "г.":
+                    #         text = text.replace("г.", "года ")
+                    #         flag = True
+            # if flag:
+            #     style = p.style
+            #     self.doc.paragraphs[5].text = text
+            #     p.style = style
         self.doc.save("test1.docx")
         os.startfile("test1.docx")

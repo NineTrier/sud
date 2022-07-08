@@ -1,18 +1,20 @@
 import os
+import re
 import sys
 import time
 from pathlib import Path
-
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtWidgets import QWidget, QApplication, QMainWindow, QPushButton, QGridLayout
-
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget, QApplication, QMainWindow, QPushButton, QGridLayout
 from Formatter import Formatter
 from Settings import Settings
 
+import win32com.client as win32
+from glob import glob
 
 # Подкласс QMainWindow для настройки главного окна приложения
 class MainWindow(QWidget):
-    settings = {'ChangeNumber': True, 'ChangeDate': True, 'ChangeKavich': True, 'ChangeTN': True, 'ChangeTire': True}
+    settings = {'ChangeNumber': True, 'ChangeDate': True, 'ChangeKavich': True, 'ChangeTN': True, 'ChangeTire': True
+        , 'ChangePadeg': True, 'ChangeRF': True}
 
     def __init__(self):
         super().__init__()
@@ -45,28 +47,59 @@ class MainWindow(QWidget):
 
         self.show()
 
-    def get_word(self):
-        paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.docx'))
-        print(paths)
+    def save_as_docx(self, path):
+
+        # Открываем Word
+        try:
+            word = win32.gencache.EnsureDispatch('Word.Application')
+            doc = word.Documents.Open(path)
+            doc.Activate()
+
+            # Меняем расширение на .docx и добавляем в путь папку
+            # для складывания конвертированных файлов
+            # new_file_abs = str(os.path.abspath(path)).split("\\")
+            # new_dir_abs = f"{new_file_abs[0]}\\{new_file_abs[1]}"
+            # new_file_abs = f"{new_file_abs[0]}\\{new_file_abs[1]}\\doc_convert\\{new_file_abs[2]}"
+            # new_file_abs = os.path.abspath(new_file_abs)
+            # if not os.path.isdir(f'{new_dir_abs}\\doc_convert'):
+            #     os.mkdir(f'{new_dir_abs}\\doc_convert')
+            new_file_abs = re.sub(r'\.\w+$', '.docx', path)
+            print(new_file_abs)
+            # Сохраняем и закрываем
+            word.ActiveDocument.SaveAs(new_file_abs, FileFormat=win32.constants.wdFormatXMLDocument)
+            doc.Close(False)
+        except:
+            return str(path).split("\\")[-1]
+
+    def get_word(self, flag):
+        if flag:
+            paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.doc'))
+        elif not flag:
+            paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.docx'))
         local_time = time.ctime(time.time()).split(' ')
         local_time = [i for i in local_time if i != '']
         local_time.pop(3)
         files = sorted(paths, key=os.path.getctime, reverse=True)
         new_files = []
         for f in files:
+            print(f, "hui")
             time1 = time.ctime(os.path.getctime(f)).split(' ')
             time1 = [i for i in time1 if i != '']
             time1.pop(3)
-            if time1 == local_time:
+            if time1 == local_time and (not '~$' in f.name):
                 new_files.append(f)
         return new_files
 
     def the_button_was_clicked(self):
-        #top = tkinter.Tk()
-        #top.withdraw()
-        #file_name = fd.askopenfilename(parent=top, filetypes=(("Word", "*.docx"), ("All files", "*.*")))
-        #top.destroy()
-        file_name = self.get_word()[0]
+        # top = tkinter.Tk()
+        # top.withdraw()
+        # file_name = fd.askopenfilename(parent=top, filetypes=(("Word", "*.doc"), ("All files", "*.*")))
+        # top.destroy()
+
+        file_name = self.get_word(True)[0]
+        print(file_name)
+        self.save_as_docx(os.path.normpath(file_name))
+        file_name = self.get_word(False)[0]
         print(file_name)
         #os.system('taskkill /f /im WINWORD.EXE') # закрывает все ВОРДЫ
         try:
@@ -90,4 +123,3 @@ app = QApplication(sys.argv)
 window = MainWindow()
 
 app.exec()
-
