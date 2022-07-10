@@ -15,16 +15,20 @@ import json
 import win32com.client as win32
 from glob import glob
 
+
 # Подкласс QMainWindow для настройки главного окна приложения
 class MainWindow(QWidget):
 
-    settings = {'ChangeNumber': True, 'ChangeDate': True, 'ChangeKavich': True, 'ChangeTN': True, 'ChangeTire': True
-        , 'ChangePadeg': True, 'ChangeRF': True, 'ChangeGod': True}
-    save_setting_file = "save_setting_file.json"
-
     def __init__(self):
         super().__init__()
+        self.H, self.W = 150, 300
+        self.settings = Settings()
+        self.create_ui()
 
+        self.show()
+
+    def create_ui(self):
+        print("Формирую окно...", end=" ")
         self.setWindowTitle("Redact Word")
 
         self.btnOpenFile = QPushButton("Откр. посл. документ")
@@ -42,7 +46,7 @@ class MainWindow(QWidget):
         self.btnSettings.setCheckable(True)
         self.btnSettings.clicked.connect(self.open_settings)
 
-        self.setFixedSize(150,300)
+        self.setFixedSize(self.H, self.W)
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
 
@@ -53,17 +57,11 @@ class MainWindow(QWidget):
 
         self.setLayout(self.grid)
 
-        self.setGeometry(app.screens()[0].size().width() - 120, (app.screens()[0].size().height() // 2) - 150, 120, 300)
+        self.setGeometry(app.screens()[0].size().width() - self.H,
+                         (app.screens()[0].size().height() // 2) - (self.W // 2), self.H, self.W)
 
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-        self.open_save_setting_file()
-        self.show()
-
-    def open_save_setting_file(self):
-        setting_file = ""
-        with open(self.save_setting_file, "r") as write_file:
-            setting_file = json.load(write_file)
-            self.settings = setting_file
+        print("Готово!")
 
     def save_as_docx(self, path):
 
@@ -82,36 +80,38 @@ class MainWindow(QWidget):
             # if not os.path.isdir(f'{new_dir_abs}\\doc_convert'):
             #     os.mkdir(f'{new_dir_abs}\\doc_convert')
             new_file_abs = re.sub(r'\.\w+$', '.docx', path)
-            print(new_file_abs)
             # Сохраняем и закрываем
             word.ActiveDocument.SaveAs(new_file_abs, FileFormat=win32.constants.wdFormatXMLDocument)
             doc.Close(False)
+            return True
         except:
-            return str(path).split("\\")[-1]
+            return False
 
-    def get_word(self, flag):
-        if flag:
-            paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.doc'))
-        elif not flag:
-            paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.docx'))
+    def get_word(self):
+        paths = sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.doc'))
+        paths += sorted(Path(f"{os.getenv('LOCALAPPDATA')}\\Temp").glob('*.docx'))
+        print(paths)
         local_time = time.ctime(time.time()).split(' ')
         local_time = [i for i in local_time if i != '']
         local_time.pop(3)
         files = sorted(paths, key=os.path.getctime, reverse=True)
         new_files = []
+        print(local_time)
         for f in files:
-            print(f, "hui")
             time1 = time.ctime(os.path.getctime(f)).split(' ')
             time1 = [i for i in time1 if i != '']
             time1.pop(3)
-            if time1 == local_time and (not '~$' in f.name):
+            print(time1)
+            if time1 == local_time and '~$' not in f.name:
                 new_files.append(f)
-        return new_files
+        print(new_files)
+        return new_files if len(new_files) > 0 else [""]
 
     def the_button_was_clicked_with_choice(self):
         top = tkinter.Tk()
         top.withdraw()
-        file_name = fd.askopenfilename(parent=top, filetypes=(("Word", "*.doc"),("Word", "*.docx"), ("All files", "*.*")))
+        file_name = fd.askopenfilename(parent=top,
+                                       filetypes=(("Word", "*.doc"), ("Word", "*.docx"), ("All files", "*.*")))
         top.destroy()
         try:
             frm = Formatter(file_name, settings=self.settings)
@@ -124,27 +124,26 @@ class MainWindow(QWidget):
             print(exc)
 
     def the_button_was_clicked(self):
-
-
-        file_name = self.get_word(True)[0]
+        file_name = self.get_word()[0]
         print(file_name)
-        self.save_as_docx(os.path.normpath(file_name))
-        file_name = self.get_word(False)[0]
-        print(file_name)
-        #os.system('taskkill /f /im WINWORD.EXE') # закрывает все ВОРДЫ
+        if '.docx' not in file_name:
+            print('Форматирую в .docx...')
+            if self.save_as_docx(os.path.normpath(file_name)):
+                print("Готово!")
+            else:
+                print("Не удалось реформатировать файл :(")
+        # os.system('taskkill /f /im WINWORD.EXE') # закрывает все ВОРДЫ
         try:
             frm = Formatter(file_name, settings=self.settings)
             frm.Redact()
-            #os.startfile(file_name) #открывает док
+            # os.startfile(file_name) #открывает док
         except FileNotFoundError:
-            print(file_name)
             return
         except Exception as exc:
             print(exc)
 
     def open_settings(self):
-        self.settings_window = Settings(self.settings)
-        self.settings_window.show()
+        self.settings.show()
 
 
 # Мониторинг новый запущенных программ

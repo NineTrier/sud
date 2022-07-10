@@ -5,25 +5,27 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QApplication, QMainWindow, QPushButton, QGridLayout, QCheckBox
 
 
-
 # Подкласс QMainWindow для настройки главного окна приложения
 class Settings(QWidget):
 
     settings: dict
+    save_setting_file = "settings.set"
 
-    def __init__(self, settings):
+    def __init__(self):
         super().__init__()
 
-        self.settings = settings
+        if not self.open_save_setting_file():
+            self.settings = {'ChangeNumber': True, 'ChangeDate': True, 'ChangeKavich': True, 'ChangeTN': True, 'ChangeTire': True
+                             , 'ChangePadeg': True, 'ChangeRF': True, 'ChangeGod': True}
         self.flag = False
-        self.setWindowTitle("My App")
+        self.setWindowTitle("Настройки")
 
         self.cb1 = QCheckBox('Заменить N на №', self)
         self.cb2 = QCheckBox('Заменить дату в шапке', self)
         self.cb3 = QCheckBox('Заменить кавычки', self)
         self.cb4 = QCheckBox('Раскрыть аббревиатуру т.е.', self)
         self.cb5 = QCheckBox('Заменить тире', self)
-        self.cb6 = QCheckBox('решение/определние падеж', self)
+        self.cb6 = QCheckBox('Решение/определение падеж', self)
         self.cb7 = QCheckBox('Раскрыть РФ', self)
         self.cb8 = QCheckBox('Раскрыть год (22 -> 2022)', self)
 
@@ -67,7 +69,15 @@ class Settings(QWidget):
 
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
 
-        self.show()
+    def open_save_setting_file(self):
+        try:
+            with open(self.save_setting_file, "r") as write_file:
+                setting_file = json.load(write_file)
+                self.settings = setting_file
+                write_file.close()
+                return True
+        except:
+            return False
 
     def enter_setting(self):
         self.save_checkbox()
@@ -114,7 +124,10 @@ class Settings(QWidget):
         else:
             self.settings['ChangeGod'] = False
 
-        with open("save_setting_file.json", 'w') as outfile:
-            json.dump(self.settings, outfile)
-
+        try:
+            with open(self.save_setting_file, 'w') as outfile:
+                json.dump(self.settings, outfile)
+                outfile.close()
+        except:
+            print("Не получилось сохранить настройки, попробуйте ещё раз")
         print(self.settings)

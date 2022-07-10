@@ -2,9 +2,10 @@ import os
 
 from docx import Document
 from docx.oxml import OxmlElement, ns
-from docx.shared import Pt, Mm, Cm
+from docx.shared import Pt, Mm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_LINE_SPACING
 from docx.enum.text import WD_COLOR_INDEX
+from tasklist import *
 
 
 class Formatter:
@@ -65,7 +66,7 @@ class Formatter:
         self.create_attribute(fldStart, 'w:fldCharType', 'begin')
         ffdata = self.create_element('w:ffData')
         name = self.create_element('w:name')
-        self.create_attribute(name, 'w:val', 'Хуй')
+        self.create_attribute(name, 'w:val', 'Тратата')
         ffdata.append(name)
         enabled = self.create_element('w:enabled')
         ffdata.append(enabled)
@@ -74,7 +75,7 @@ class Formatter:
         ffdata.append(calc)
         textInput = self.create_element('w:textInput')
         default = self.create_element('w:default')
-        self.create_attribute(default, 'w:val', "Жопа")
+        self.create_attribute(default, 'w:val', "Текст")
         textInput.append(default)
         ffdata.append(textInput)
         fldStart.append(ffdata)
@@ -119,7 +120,7 @@ class Formatter:
         rPrNNNN.append(fldChar22)
         run5._r.append(rPrNNNN)
         fldCharText = self.create_element('w:t')
-        fldCharText.text = "Жопа"
+        fldCharText.text = "Текст"
         run5._r.append(fldCharText)
 
         run6 = paragraph.add_run()
@@ -171,23 +172,23 @@ class Formatter:
 
         # Настройка междустрочного интервала и убираем выделение корректором
         for p in self.doc.paragraphs:
-            p.add_run()
-            # print(p.text)
+            print(p.style.name)
+            for run in p.runs:
+                run.font.name = 'Times New Roman'
+                run.font.size = Pt(12)
             p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-            p.runs[0].font.highlight_color = WD_COLOR_INDEX.AUTO
-        # Настройка шрифта и размера текста
-        style = self.doc.styles['Normal']
-        font = style.font
-        font.name = 'Times New Roman'
-        font.size = Pt(12)
+            p.style.font.highlight_color = WD_COLOR_INDEX.AUTO
+
 
     # функция редактирование текста
     def Redact(self):
-        # self.numbering()
-        # self.Format()
+        self.numbering()
+        self.Format()
+        Dates = []
+        Times = []
         for p in self.doc.paragraphs:  # проходим все абзацы в документе на поиск ошибок, и заменяем их
             # self.get_textInput(p)
-            print(p.text)
+            #print(p.text)
             self.set_textInput(p)
             text = p.text
             if p.text == "":
@@ -201,15 +202,11 @@ class Formatter:
                     text = text.replace(' N ', ' № ')
                     flag = True
             if list(self.settings.values())[2]:
-                if ' "' in p.text and '" ' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
+                if '"' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
                     text = text.replace(' "', ' «')
                     text = text.replace('" ', '» ')
-                    flag = True
-                elif ' "' in p.text and '".' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
                     text = text.replace(' "', '«')
                     text = text.replace('".', '».')
-                    flag = True
-                elif ' "' in p.text and '",' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
                     text = text.replace(' "', '«')
                     text = text.replace('",', '»,')
                     flag = True
@@ -250,34 +247,36 @@ class Formatter:
                                 flag = True
                                 text = text.replace(f"/{i}", f"/20{i}")
                                 continue
+            #print(p.text)
+            dates, times = get_all_Date_Time(p.text)
+            Dates.append(dates)
+            Times.append(times)
+            if list(self.settings.values())[1]:
+                if Dates[-1]:
+                    for date in Dates[-1]:
+                        splittedDate = date.split('.')
+                        text = text.replace(f"{date} г.", f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+                        text = text.replace(date, f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+                        flag = True
+            if Times[-1]:
+                for time in Times[-1]:
+                    splittedTime = time.split(':')
+                    text = text.replace(time, f"{splittedTime[0]} час. {splittedTime[1]} мин")
+                    flag = True
             if flag:
                 style = p.style
                 p.text = text
                 p.style = style
-            print(p.text)
         # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
         # в 12 октября 2021 года
-        #     if list(self.settings.values())[1]:
-        #         if "Дело" in self.doc.paragraphs[5].text:
-        #             text = str(self.doc.paragraphs[5].text)
-        #             flag = False
-        #             if "." in text[0:10]:
-        #                 monthNumb = text[3:5]
-        #                 if monthNumb in self.month.keys():
-        #                     text = text.replace(text[0:10], f"{text[0:10]} года")
-        #                     text = text.replace(f".{monthNumb}.", f" {self.month.get(monthNumb)} ")
-        #                     flag = True
-        #             elif "г.":
-        #                 text = text.replace("г.", "года ")
-        #                 flag = True
-        #         if flag:
-        #             style = p.style
-        #             self.doc.paragraphs[5].text = text
-        #             p.style = style
+
+
         if list(self.settings.values())[7]:
             for table in self.doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
+                        print(cell.paragraphs[0].style.name, "table")
+                        cell.paragraphs[0].style.font.name = 'Times New Roman'
                         if (" дел" in cell.text or "Дел" in cell.text) and " № " in cell.text and "/" in cell.text:
                             check_flag = True
                             for i in range(19, 30):
@@ -287,10 +286,13 @@ class Formatter:
                                     continue
                             if check_flag:
                                 for i in range(19, 30):
+
                                     if f"/{i}" in cell.text:
                                         cell.text = cell.text.replace(f"/{i}", f"/20{i}")
-                                        cell.paragraphs[0].style.font.name = 'Times New Roman'
+
                                         cell.paragraphs[0].paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
                                         continue
         self.doc.save("test1.docx")
         os.startfile("test1.docx")
+        print(Dates)
+        print(Times)
