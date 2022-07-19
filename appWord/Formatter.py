@@ -4,7 +4,8 @@ from docx import Document
 from docx.oxml import OxmlElement, ns
 from docx.shared import Pt, Mm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_LINE_SPACING
-from docx.enum.text import WD_COLOR_INDEX
+
+import tasklist
 from tasklist import *
 
 
@@ -15,10 +16,16 @@ class Formatter:
              "06": "июня", "07": "июля", "08": "августа", "09": "сентября", "10": "октября",
              "11": "ноября", "12": "декабря"}
 
-    def __init__(self, path, settings):
+    def __init__(self, path, settings, path_to_save):
         self.doc = Document(path)
         self.path = path
+        self.name = ""
+        self.number = ""
         self.settings = settings
+        self.path_to_save = path_to_save
+        self.path_to_save_dif = f"{self.path_to_save}\\Разное"
+        self.Dates = []
+        self.Times = []
 
     def create_element(self, name):
         return OxmlElement(name)
@@ -49,250 +56,343 @@ class Formatter:
         run._r.append(fldChar2)
         run._r.append(fldEnd)
 
-    def get_textInput(self, paragraph):
-
-        run = paragraph.add_run()
-        self.create_attribute(run._r, 'w:rsidRPr', '00921D4A')
-        rPr = self.create_element('w:rPr')
-        rPr1 = self.create_element('w:szCs')
-        self.create_attribute(rPr1, 'w:val', '26')
-        rPr2 = self.create_element('w:highlight')
-        self.create_attribute(rPr2, 'w:val', 'default')
-        rPr.append(rPr1)
-        rPr.append(rPr2)
-        run._r.append(rPr)
-
-        fldStart = self.create_element('w:fldChar')
-        self.create_attribute(fldStart, 'w:fldCharType', 'begin')
-        ffdata = self.create_element('w:ffData')
-        name = self.create_element('w:name')
-        self.create_attribute(name, 'w:val', 'Тратата')
-        ffdata.append(name)
-        enabled = self.create_element('w:enabled')
-        ffdata.append(enabled)
-        calc = self.create_element('w:calcOnExit')
-        self.create_attribute(calc, 'w:val', '0')
-        ffdata.append(calc)
-        textInput = self.create_element('w:textInput')
-        default = self.create_element('w:default')
-        self.create_attribute(default, 'w:val', "Текст")
-        textInput.append(default)
-        ffdata.append(textInput)
-        fldStart.append(ffdata)
-        run._r.append(fldStart)
-
-        run2 = paragraph.add_run()
-        self.create_attribute(run2._r, 'w:rsidRPr', '00921D4A')
-        rPrN = self.create_element('w:rPr')
-        rPrN1 = self.create_element('w:szCs')
-        self.create_attribute(rPr1, 'w:val', '26')
-        rPrN.append(rPrN1)
-        run._r.append(rPrN)
-        instrText = self.create_element('w:instrText')
-        self.create_attribute(instrText, 'xml:space', 'preserve')
-        instrText.text = " FORMTEXT "
-        run2._r.append(instrText)
-
-        run3 = paragraph.add_run()
-        self.create_attribute(run3._r, 'w:rsidRPr', '00921D4A')
-        rPrNN = self.create_element('w:rPr')
-        fldChar1 = self.create_element('w:szCs')
-        self.create_attribute(fldChar1, 'w:val', '26')
-        rPrNN.append(fldChar1)
-        run3._r.append(rPrNN)
-
-        run4 = paragraph.add_run()
-        self.create_attribute(run4._r, 'w:rsidRPr', '00921D4A')
-        rPrNNN = self.create_element('w:rPr')
-        fldChar2 = self.create_element('w:szCs')
-        self.create_attribute(fldChar2, 'w:val', '26')
-        rPrNNN.append(fldChar2)
-        run4._r.append(rPrNNN)
-        fldCharSep = self.create_element('w:fldChar')
-        self.create_attribute(fldCharSep, 'w:fldCharType', 'separate')
-        run4._r.append(fldCharSep)
-
-        run5 = paragraph.add_run()
-        self.create_attribute(run5._r, 'w:rsidRPr', '00921D4A')
-        rPrNNNN = self.create_element('w:rPr')
-        fldChar22 = self.create_element('w:szCs')
-        self.create_attribute(fldChar22, 'w:val', '26')
-        rPrNNNN.append(fldChar22)
-        run5._r.append(rPrNNNN)
-        fldCharText = self.create_element('w:t')
-        fldCharText.text = "Текст"
-        run5._r.append(fldCharText)
-
-        run6 = paragraph.add_run()
-        self.create_attribute(run6._r, 'w:rsidRPr', '00921D4A')
-        fldEnd = self.create_element('w:fldChar')
-        self.create_attribute(fldEnd, 'w:fldCharType', 'end')
-        run6._r.append(fldEnd)
-
-    def set_textInput(self, paragraph):
-
+    def delete_textInput(self, paragraph):
         run = paragraph.add_run()
         for bad in run._r.xpath('//w:textInput'):
             bad.getparent().getparent().getparent().getparent().remove(bad.getparent().getparent().getparent())
-        # for bad in run._r.xpath('//w:ffData'):
-        #     bad.getparent().remove(bad)
-        # run = paragraph.add_run()
         for bad in run._r.xpath("//w:instrText[text()=' FORMTEXT ']"):
             bad.getparent().getparent().remove(bad.getparent())
         for bad in run._r.xpath("//w:instrText[text()='FORMTEXT ']"):
             bad.getparent().getparent().remove(bad.getparent())
+        for bad in run._r.xpath('//w:smartTag/w:r'):
+            anc = bad.getparent()
+            anc.addnext(bad)
+            anc.getparent().remove(anc)
+
+    def delete_highlight(self, path):
+        doc = Document(path)
+        run = doc.paragraphs[0].add_run()
+        for bad in run._r.xpath(f"//w:highlight"):
+            bad.getparent().remove(bad)
+        doc.save(path)
+
+    def find_highlight(self, paragraph, color='yellow'):
+        massiv = []
+        run = paragraph.add_run()
+        for bad in run._r.xpath(f"//w:highlight[@w:val='{color}']"):
+            for i in bad.getparent().getparent():
+                if i.tag == '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t':
+                    i.text = self.zamena(i.text)
+                    if f"{i.text};hg" not in massiv:
+                        massiv.append(f"{i.text};hg" if len(str(i.text).replace(' ', '')) > 1 else f"_{i.text};hg")
+                    i.text = f"{i.text};hg" if len(str(i.text).replace(' ', '')) > 1 else f"_{i.text};hg"
+        return massiv
+
+    def change_font(self, path):
+        doc = Document(path)
+        run = doc.paragraphs[0].add_run()
+        for bad in run._r.xpath(f"//w:rFonts"):
+            parent = bad.getparent()
+            rfont = self.create_element('w:rFonts')
+            self.create_attribute(rfont, 'w:ascii', 'Times New Roman')
+            self.create_attribute(rfont, 'w:hAnsi', 'Times New Roman')
+            self.create_attribute(rfont, 'w:cs', 'Times New Roman')
+            self.create_attribute(rfont, 'w:eastAsia', 'Times New Roman')
+            parent.remove(bad)
+            parent.append(rfont)
+        doc.save(path)
+
+    def rewrite_highlights(self, hg, path):
+        doc = Document(path)
+        run = doc.paragraphs[0].add_run()
+        for h in hg:
+            try:
+                for bad in run._r.xpath(f"//w:t[contains(text(),'{h}')]"):
+                    text = str(bad.text)
+                    textSplitted = text.split(h)
+                    parent = bad.getparent()
+
+                    rPr = self.create_element('w:rPr')
+                    highlight = self.create_element('w:highlight')
+                    self.create_attribute(highlight, 'w:val', 'yellow')
+                    rPr.append(highlight)
+                    parent.remove(bad)
+                    if textSplitted[0] == '' and textSplitted.count('') == 1:
+                        parent.append(rPr)
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = h.replace(';hg', '').replace('_', '')
+                        parent.append(t)
+                        r = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[1]
+                        r.append(t)
+                        parent.addnext(r)
+                    elif textSplitted[1] == '' and textSplitted.count('') == 1:
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[0]
+                        parent.append(t)
+                        r = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = h.replace(';hg', '').replace('_', '')
+                        r.append(rPr)
+                        r.append(t)
+                        parent.addnext(r)
+                    elif textSplitted.count('') > 1:
+                        parent.append(rPr)
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = h.replace(';hg', '').replace('_', '')
+                        parent.append(t)
+                    elif textSplitted.count('') == 0:
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[0]
+                        parent.append(t)
+                        r = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = h.replace(';hg', '').replace('_', '')
+                        r.append(rPr)
+                        r.append(t)
+                        parent.addnext(r)
+                        r1 = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[1]
+                        r1.append(t)
+                        r.addnext(r1)
+            except Exception as exc:
+                print(exc, "rewrite_highlights : ", h, " : ", bad, " : ", bad.getparent())
+        doc.save(path)
+
+    def zamena(self, text):
+        # Убираем двойные пробелы
+        if "  " in text:
+            text = text.replace('  ', ' ')
+        if ' т.е. ' in text:  # проверяем, если ли т.е., если есть заменяем на то есть
+            text = text.replace(' т.е. ', ' то есть ')
+        if list(self.settings.values())[0]:
+            if " N " in text:  # проверяем, если ли N, если есть заменяем на №
+                text = text.replace(' N ', ' № ')
+        if list(self.settings.values())[2]:
+            if '"' in text:  # проверяем, если ли "...", если есть заменяем на «...»
+                text = text.replace(' "', ' «')
+                text = text.replace('"', '»')
+            if '“' in text and '”' in text:  # проверяем, если ли “...”, если есть заменяем на «...»
+                text = text.replace('“', '«')
+                text = text.replace('”', '»')
+        if list(self.settings.values())[4]:
+            if ' - ' in text:  # проверяем, если ли -, если есть заменяем на –
+                text = text.replace(' - ', ' – ')
+        # Раскрываем аббревиатуры
+        if list(self.settings.values())[3]:
+            if ' РС (Я) ' in text:
+                text = text.replace(' РС (Я) ', ' Республики Саха (Якутия) ')
+            if ' РБ ' in text:
+                text = text.replace(' РБ ', ' Республики Бурятия ')
+            if ' ИО ' in text:
+                text = text.replace(' ИО ', ' Иркутской области ')
+            if ' ЗК ' in text:
+                text = text.replace(' ЗК ', ' Забайкальского края ')
+            if 'РС (Я) ' in text:
+                text = text.replace('РС (Я) ', 'Республики Саха (Якутия) ')
+            if 'РБ ' in text:
+                text = text.replace('РБ ', 'Республики Бурятия ')
+            if 'ИО ' in text:
+                text = text.replace('ИО ', 'Иркутской области ')
+            if 'ЗК ' in text:
+                text = text.replace('ЗК ', 'Забайкальского края ')
+        # Работаем с падежами
+        if list(self.settings.values())[5]:
+            if 'решение Арбитражный суд' in text:
+                text = text.replace('решение Арбитражный суд', 'решение Арбитражного суда')
+            if 'Решение Арбитражный суд' in text:
+                text = text.replace('Решение Арбитражный суд', 'Решение Арбитражного суда')
+            if 'определение Арбитражный суд' in text:
+                text = text.replace('определение Арбитражный суд', 'определение Арбитражного суда')
+            if 'Определение Арбитражный суд' in text:
+                text = text.replace('Определение Арбитражный суд', 'Определение Арбитражного суда')
+            if 'наличие в Арбитражный суд' in text:
+                text = text.replace('наличие в Арбитражный суд', 'наличие в Арбитражном суде')
+            if 'Наличие в Арбитражный суд' in text:
+                text = text.replace('Наличие в Арбитражный суд', 'Наличие в Арбитражном суде')
+            if 'содействии Арбитражный суд' in text:
+                text = text.replace('содействии Арбитражный суд', 'содействии Арбитражного суда')
+            if 'Содействии Арбитражный суд' in text:
+                text = text.replace('Содействии Арбитражный суд', 'Содействии Арбитражного суда')
+            if 'Поручил Арбитражный суд' in text:
+                text = text.replace('Поручил Арбитражный суд', 'Поручил Арбитражному суду')
+            if 'поручил Арбитражный суд' in text:
+                text = text.replace('поручил Арбитражный суд', 'поручил Арбитражному суду')
+        # Отдельная опциональная аббревиатура
+        if list(self.settings.values())[6]:
+            if ' РФ ' in text:
+                text = text.replace(' РФ ', ' Российской Федерации ')
+        dates, times = get_all_Date_Time(text)
+        self.Dates.append(dates)
+        self.Times.append(times)
+        if list(self.settings.values())[1]:
+            if self.Dates[-1]:
+                for date in self.Dates[-1]:
+                    splittedDate = date.split('.')
+                    if len(splittedDate[2]) == 2:
+                        text = text.replace(f"{date} г.",
+                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} 20{splittedDate[2]} года")
+                        text = text.replace(date,
+                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} 20{splittedDate[2]} года")
+                    else:
+                        text = text.replace(f"{date} г.",
+                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+                        text = text.replace(date,
+                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+        if self.Times[-1]:
+            for timen in self.Times[-1]:
+                splittedTime = timen.split(':')
+                text = text.replace(timen, f"{splittedTime[0]} часов {splittedTime[1]} минут")
+        return text
 
     # нумерация
     def numbering(self):
-        print("Заголовок____________________________", self.doc.sections[0].header.paragraphs[0].text)
-        if self.doc.sections[0].header.paragraphs[0].text == "":
-            self.add_page_number(self.doc.sections[0].header.paragraphs[0].add_run())
-            self.doc.sections[0].header.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # выравниваем по центру
-            self.doc.sections[
-                0].different_first_page_header_footer = True  # особый колонтитул для первой страницы - вкл
-            # self.doc.sections[0].header.paragraphs[0].paragraph_format.space_after = Mm(100)  # отступ колонитула от вверхнего края
-            sectPr = self.doc.sections[0]._sectPr  # хер его знает, стоило бы узнать
-            print("Трогаю")
-            pgNumType = OxmlElement('w:pgNumType')
-            pgNumType.set(ns.qn('w:start'), "1")  # 1 это с какой страницы начинается отсчёт
-            sectPr.append(pgNumType)
+        try:
+            if self.doc.sections[0].header.paragraphs[0].text == "":
+                self.add_page_number(self.doc.sections[0].header.paragraphs[0].add_run())
+                self.doc.sections[0].header.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # выравниваем по центру
+                self.doc.sections[0].different_first_page_header_footer = True  # особый колонтитул для первой страницы - вкл
+                sectPr = self.doc.sections[0]._sectPr  # хер его знает, стоило бы узнать
+                pgNumType = OxmlElement('w:pgNumType')
+                pgNumType.set(ns.qn('w:start'), "1")  # 1 это с какой страницы начинается отсчёт
+                sectPr.append(pgNumType)
+            return True
+        except Exception as exc:
+            print(exc, 'numbering')
+            return False
+
+    def check_folder_path(self):
+        try:
+            file_name = os.path.basename(self.path)
+            number_doc = file_name[0:file_name.index("_", file_name.index("_") + 1)] if "_" in file_name else file_name
+            file_to_save = f"Отформатированный {file_name}"
+            if not os.path.exists(self.path_to_save):
+                print("Создаю ассистента")
+                os.mkdir(self.path_to_save)
+            user_file = self.path_to_save + f"\\{number_doc}" if "_" in file_name else self.path_to_save_dif
+            if not os.path.exists(user_file):
+                print("Создаю пап очка")
+                os.mkdir(user_file)
+            user_file += "\\" + file_to_save
+            return user_file, number_doc, file_name
+        except Exception as exc:
+            print(exc, 'check_folder_path')
 
     # Функция для форматирования текст
     def Format(self):
-        # Настройка отступов
-        section = self.doc.sections[-1]
-        section.top_margin = Mm(20)
-        section.bottom_margin = Mm(20)
-        section.left_margin = Mm(15)
-        section.right_margin = Mm(15)
-        section.header_distance = Mm(10)
-        # отступ от нижнего края страницы до
-        # нижнего края нижнего колонтитула
-        section.footer_distance = Mm(10)
+        try:
+            # Настройка отступов
+            section = self.doc.sections[-1]
+            section.top_margin = Mm(20)
+            section.bottom_margin = Mm(20)
+            # section.left_margin = Mm(15)
+            section.right_margin = Mm(15)
+            section.header_distance = Mm(10)
+            # отступ от нижнего края страницы до
+            # нижнего края нижнего колонтитула
+            section.footer_distance = Mm(10)
 
-        # Настройка междустрочного интервала и убираем выделение корректором
-        for p in self.doc.paragraphs:
-            print(p.style.name)
-            for run in p.runs:
-                run.font.name = 'Times New Roman'
-                run.font.size = Pt(12)
-            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-            p.style.font.highlight_color = WD_COLOR_INDEX.AUTO
+            print(self.doc.styles)
+            for style in self.doc.styles:
+                try:
+                    style.font.name = 'Times New Roman'
+                    style.font.size = Pt(12)
+                    # style.font.highlight_color
+                except:
+                    continue
+            # Настройка междустрочного интервала и убираем выделение корректором
 
+            for p in self.doc.paragraphs:
+                for run in p.runs:
+                    run.font.name = 'Times New Roman'
+                    run.font.size = Pt(12)
+                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+                # p.style.font.highlight_color = WD_COLOR_INDEX.AUTO
+            return True
+        except Exception as exc:
+            print(exc, 'Format')
+            return False
 
     # функция редактирование текста
     def Redact(self):
-        self.numbering()
-        self.Format()
-        Dates = []
-        Times = []
+        print('Нумерую страницы...', end=" ")
+        if self.numbering():
+            print('Пронумеровал!')
+        else:
+            print('Не удалось пронумеровать :(')
+        print('Форматирую текст...', end=" ")
+        if self.Format():
+            print('Отформатировал!')
+        else:
+            print('Не удалось отформатировать :(')
+
+        if not self.settings["ChangeHighlight"]:
+            Highlights = self.find_highlight(self.doc.paragraphs[0])
+        else:
+            Highlights = []
+        for hg in range(len(Highlights)):
+            dat, tim = tasklist.get_all_Date_Time(Highlights[hg])
+            for d in dat:
+                splittedDate = d.split('.')
+                if len(splittedDate[2]) == 2:
+                    Highlights[hg] = Highlights[hg].replace(f"{d} г.",
+                                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} 20{splittedDate[2]} года")
+                    Highlights[hg] = Highlights[hg].replace(d,
+                                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} 20{splittedDate[2]} года")
+                else:
+                    Highlights[hg] = Highlights[hg].replace(f"{d} г.",
+                                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+                    Highlights[hg] = Highlights[hg].replace(d,
+                                                            f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
+            for t in tim:
+                splittedTime = t.split(':')
+                Highlights[hg] = Highlights[hg].replace(t, f"{splittedTime[0]} часов {splittedTime[1]} минут")
+            for i in range(10, 99):
+                if f"/{i}" in Highlights[hg]:
+                    Highlights[hg] = Highlights[hg].replace(f"/{i}", f"/20{i}")
+        print(Highlights)
         for p in self.doc.paragraphs:  # проходим все абзацы в документе на поиск ошибок, и заменяем их
-            # self.get_textInput(p)
-            #print(p.text)
-            self.set_textInput(p)
-            text = p.text
-            if p.text == "":
+            self.delete_textInput(p)
+            text = self.zamena(str(p.text))
+            if text == "":
                 continue
-            # print(text, "------------------", p.style.name, p.style.font.bold, p.style.font.size)
+            p.text = text
             # флаг, который отвечает, есть ли ошибка в абзаце
             # если есть, то правим и заменяем текс, если нет, то нет
-            flag = False
-            if list(self.settings.values())[0]:
-                if " N " in p.text:  # проверяем, если ли N, если есть заменяем на №
-                    text = text.replace(' N ', ' № ')
-                    flag = True
-            if list(self.settings.values())[2]:
-                if '"' in p.text:  # проверяем, если ли "...", если есть заменяем на «...»
-                    text = text.replace(' "', ' «')
-                    text = text.replace('" ', '» ')
-                    text = text.replace(' "', '«')
-                    text = text.replace('".', '».')
-                    text = text.replace(' "', '«')
-                    text = text.replace('",', '»,')
-                    flag = True
-                if '“' in p.text and '”' in p.text:  # проверяем, если ли “...”, если есть заменяем на «...»
-                    text = text.replace('“', '«')
-                    text = text.replace('”', '»')
-                    flag = True
-            if list(self.settings.values())[4]:
-                if ' - ' in p.text:  # проверяем, если ли -, если есть заменяем на –
-                    text = text.replace(' - ', ' – ')
-                    flag = True
-            if list(self.settings.values())[3]:
-                if ' т.е. ' in p.text:  # проверяем, если ли т.е., если есть заменяем на то есть
-                    text = text.replace(' т.е. ', ' то есть ')
-                    flag = True
-            if list(self.settings.values())[5]:
-                if 'решение Арбитражный суд' in p.text:
-                    text = text.replace('решение Арбитражный суд', 'решение Арбитражного суда')
-                    flag = True
-                if 'определение Арбитражный суд' in p.text:
-                    flag = True
-                    text = text.replace('определение Арбитражный суд', 'определение Арбитражного суда')
-            if list(self.settings.values())[6]:
-                if ' РФ ' in p.text:
-                    flag = True
-                    text = text.replace(' РФ ', 'Российская Федерация')
-            # если есть хотя бы одна ошибка в абзаце, меняем на исправленный вариант
-            if list(self.settings.values())[7]:
-                check_flag = True
-                if (" дел" in text or " Дел" in text) and " № " in text and "/" in text:
-                    for i in range(19, 30):
-                        if f"/20{i}" in text:
-                            check_flag = False
-                            continue
-                    if check_flag:
-                        for i in range(19, 30):
-                            if f"/{i}" in text:
-                                flag = True
-                                text = text.replace(f"/{i}", f"/20{i}")
-                                continue
-            #print(p.text)
-            dates, times = get_all_Date_Time(p.text)
-            Dates.append(dates)
-            Times.append(times)
-            if list(self.settings.values())[1]:
-                if Dates[-1]:
-                    for date in Dates[-1]:
-                        splittedDate = date.split('.')
-                        text = text.replace(f"{date} г.", f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
-                        text = text.replace(date, f"{splittedDate[0]} {self.month[splittedDate[1]]} {splittedDate[2]} года")
-                        flag = True
-            if Times[-1]:
-                for time in Times[-1]:
-                    splittedTime = time.split(':')
-                    text = text.replace(time, f"{splittedTime[0]} час. {splittedTime[1]} мин")
-                    flag = True
-            if flag:
-                style = p.style
-                p.text = text
-                p.style = style
-        # редактирование даты, например 12.03.2021 или 12 октября 2021 г.
-        # в 12 октября 2021 года
-
-
         if list(self.settings.values())[7]:
-            for table in self.doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        print(cell.paragraphs[0].style.name, "table")
-                        cell.paragraphs[0].style.font.name = 'Times New Roman'
-                        if (" дел" in cell.text or "Дел" in cell.text) and " № " in cell.text and "/" in cell.text:
-                            check_flag = True
-                            for i in range(19, 30):
-                                if f"/20{i}" in cell.text:
-                                    cell.paragraphs[0].style.font.name = 'Times New Roman'
-                                    check_flag = False
-                                    continue
-                            if check_flag:
-                                for i in range(19, 30):
-
-                                    if f"/{i}" in cell.text:
-                                        cell.text = cell.text.replace(f"/{i}", f"/20{i}")
-
-                                        cell.paragraphs[0].paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-                                        continue
-        self.doc.save("test1.docx")
-        os.startfile("test1.docx")
-        print(Dates)
-        print(Times)
+            run = self.doc.paragraphs[0].runs[0]
+            for i in range(10, 99):
+                try:
+                    for bad in run._r.xpath(f"//w:t[contains(text(),'/{i}')]"):
+                        if bad.text.split(f'/{i}')[1] == '':
+                            bad.text = str(bad.text).replace(f'/{i}', f'/20{i}')
+                        elif '0' <= bad.text.split(f'/{i}')[1][0] <= '9':
+                            continue
+                        else:
+                            bad.text = str(bad.text).replace(f'/{i}', f'/20{i}')
+                except Exception as exc:
+                    print(exc)
+                    continue
+        print(self.Dates)
+        print(self.Times)
+        path_file, number_file, name_file = self.check_folder_path()
+        self.doc.save(path_file)
+        if self.settings["ChangeHighlight"]:
+            self.delete_highlight(path_file)
+        else:
+            self.rewrite_highlights(Highlights, path_file)
+        self.change_font(path_file)
+        os.startfile(path_file)
+        self.path = path_file
+        self.number = number_file
+        self.name = name_file
