@@ -1,5 +1,6 @@
 import os
 
+import socket
 from docx import Document
 from docx.oxml import OxmlElement, ns
 from docx.shared import Pt, Mm
@@ -56,18 +57,93 @@ class Formatter:
         run._r.append(fldChar2)
         run._r.append(fldEnd)
 
+    def find_hyperlinks(self):
+        print('Ищу ссылки...')
+        self.hyperlinks = []
+        run = self.doc.paragraphs[0].runs[0]
+        try:
+            for bad in run._r.xpath('//w:hyperlink'):
+                self.hyperlinks.append((bad, f";{bad.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']}"))
+                print(bad, bad.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'])
+                r = self.create_element('w:r')
+                t = self.create_element('w:t')
+                self.create_attribute(t, 'xml:space', 'preserve')
+                t.text = f";{bad.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']}"
+                r.append(t)
+                parent = bad.getparent()
+                bad.addnext(r)
+                parent.remove(bad)
+            print('Нашёл ссылки!')
+        except Exception as exc:
+            print(exc, "find_hyperlinks")
+
+    def revive_hyperlinks(self, path):
+        print('Восстанавливаю ссылки...')
+        doc = Document(path)
+        run = doc.paragraphs[0].add_run()
+        for h in self.hyperlinks:
+            try:
+                for bad in run._r.xpath(f"//w:t[contains(text(),'{h[1]}')]"):
+                    text = str(bad.text)
+                    textSplitted = text.split(h[1])
+                    parent = bad.getparent()
+                    if textSplitted[0] == '' and textSplitted.count('') == 1:
+                        r = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[1]
+                        r.append(t)
+                        bad.addnext(r)
+                        bad.addnext(h[0])
+                        parent.remove(bad)
+                    elif textSplitted[1] == '' and textSplitted.count('') == 1:
+                        r = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[0]
+                        r.append(t)
+                        bad.addnext(h[0])
+                        bad.addnext(r)
+                        parent.remove(bad)
+                    elif textSplitted.count('') > 1:
+                        bad.addnext(h[0])
+                        parent.remove(bad)
+                    elif textSplitted.count('') == 0:
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[0]
+                        parent.append(t)
+                        r = self.create_element('w:r')
+                        r.append(t)
+                        r1 = self.create_element('w:r')
+                        t = self.create_element('w:t')
+                        self.create_attribute(t, 'xml:space', 'preserve')
+                        t.text = textSplitted[1]
+                        bad.addnext(r1)
+                        bad.addnext(h[0])
+                        bad.addnext(r)
+                        parent.remove(bad)
+                print('Восстановил ссылки!')
+            except Exception as exc:
+                print(exc, "rewrite_highlights")
+                continue
+        doc.save(path)
+
     def delete_textInput(self, paragraph):
         run = paragraph.add_run()
-        for bad in run._r.xpath('//w:textInput'):
-            bad.getparent().getparent().getparent().getparent().remove(bad.getparent().getparent().getparent())
-        for bad in run._r.xpath("//w:instrText[text()=' FORMTEXT ']"):
-            bad.getparent().getparent().remove(bad.getparent())
-        for bad in run._r.xpath("//w:instrText[text()='FORMTEXT ']"):
-            bad.getparent().getparent().remove(bad.getparent())
-        for bad in run._r.xpath('//w:smartTag/w:r'):
-            anc = bad.getparent()
-            anc.addnext(bad)
-            anc.getparent().remove(anc)
+        try:
+            for bad in run._r.xpath('//w:textInput'):
+                bad.getparent().getparent().getparent().getparent().remove(bad.getparent().getparent().getparent())
+            for bad in run._r.xpath("//w:instrText[text()=' FORMTEXT ']"):
+                bad.getparent().getparent().remove(bad.getparent())
+            for bad in run._r.xpath("//w:instrText[text()='FORMTEXT ']"):
+                bad.getparent().getparent().remove(bad.getparent())
+            for bad in run._r.xpath('//w:smartTag/w:r'):
+                anc = bad.getparent()
+                anc.addnext(bad)
+                anc.getparent().remove(anc)
+        except Exception as exc:
+            print(exc, "delete_textInput")
 
     def delete_highlight(self, path):
         doc = Document(path)
@@ -92,14 +168,17 @@ class Formatter:
         doc = Document(path)
         run = doc.paragraphs[0].add_run()
         for bad in run._r.xpath(f"//w:rFonts"):
-            parent = bad.getparent()
-            rfont = self.create_element('w:rFonts')
-            self.create_attribute(rfont, 'w:ascii', 'Times New Roman')
-            self.create_attribute(rfont, 'w:hAnsi', 'Times New Roman')
-            self.create_attribute(rfont, 'w:cs', 'Times New Roman')
-            self.create_attribute(rfont, 'w:eastAsia', 'Times New Roman')
-            parent.remove(bad)
-            parent.append(rfont)
+            try:
+                parent = bad.getparent()
+                rfont = self.create_element('w:rFonts')
+                self.create_attribute(rfont, 'w:ascii', 'Times New Roman')
+                self.create_attribute(rfont, 'w:hAnsi', 'Times New Roman')
+                self.create_attribute(rfont, 'w:cs', 'Times New Roman')
+                self.create_attribute(rfont, 'w:eastAsia', 'Times New Roman')
+                parent.remove(bad)
+                parent.append(rfont)
+            except:
+                continue
         doc.save(path)
 
     def rewrite_highlights(self, hg, path):
@@ -167,6 +246,7 @@ class Formatter:
                         r.addnext(r1)
             except Exception as exc:
                 print(exc, "rewrite_highlights : ", h, " : ", bad, " : ", bad.getparent())
+                continue
         doc.save(path)
 
     def zamena(self, text):
@@ -187,7 +267,7 @@ class Formatter:
                 text = text.replace('”', '»')
         if list(self.settings.values())[4]:
             if ' - ' in text:  # проверяем, если ли -, если есть заменяем на –
-                text = text.replace(' - ', ' – ')
+                text = text.replace('- ', '– ')
         # Раскрываем аббревиатуры
         if list(self.settings.values())[3]:
             if ' РС (Я) ' in text:
@@ -252,7 +332,7 @@ class Formatter:
         if self.Times[-1]:
             for timen in self.Times[-1]:
                 splittedTime = timen.split(':')
-                text = text.replace(timen, f"{splittedTime[0]} часов {splittedTime[1]} минут")
+                text = text.replace(timen, f"на {splittedTime[0]} часов {splittedTime[1]} минут")
         return text
 
     # нумерация
@@ -336,6 +416,8 @@ class Formatter:
         else:
             print('Не удалось отформатировать :(')
 
+        self.find_hyperlinks()
+
         if not self.settings["ChangeHighlight"]:
             Highlights = self.find_highlight(self.doc.paragraphs[0])
         else:
@@ -387,10 +469,12 @@ class Formatter:
         print(self.Times)
         path_file, number_file, name_file = self.check_folder_path()
         self.doc.save(path_file)
-        if self.settings["ChangeHighlight"]:
-            self.delete_highlight(path_file)
-        else:
-            self.rewrite_highlights(Highlights, path_file)
+        if len(Highlights) > 0:
+            if self.settings["ChangeHighlight"]:
+                self.delete_highlight(path_file)
+            else:
+                self.rewrite_highlights(Highlights, path_file)
+        self.revive_hyperlinks(path_file)
         self.change_font(path_file)
         os.startfile(path_file)
         self.path = path_file
