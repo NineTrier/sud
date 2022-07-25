@@ -11,7 +11,7 @@ from tkinter import filedialog as fd
 # Подкласс QMainWindow для настройки главного окна приложения
 class Settings(QWidget):
     settings: dict
-    save_setting_file = "settings.set"
+    save_setting_file = f"{os.path.join(os.path.join(os.environ['USERPROFILE']), 'Documents')}\\settings.set"
 
     def __init__(self):
         super().__init__()
